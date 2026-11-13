@@ -2,5 +2,7 @@
   "name": "Hisab Manager",
   "description": "Shop & Labour Hisab Manager for daily staff attendance, kharcha/advances, and galla cashbook with offline-first Firebase sync.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
