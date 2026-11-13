@@ -1,0 +1,239 @@
+{
+  "entities": {
+    "Worker": {
+      "title": "Worker",
+      "description": "An individual labour/staff profile belonging to a shop owner.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the shop owner."
+        },
+        "name": {
+          "type": "string",
+          "description": "Worker full name."
+        },
+        "phone": {
+          "type": "string",
+          "description": "Worker phone number for calls and WhatsApp slips."
+        },
+        "role": {
+          "type": "string",
+          "description": "Work type or role (e.g. Mistri, Helper, Sales Boy)."
+        },
+        "dailyWage": {
+          "type": "integer",
+          "description": "Daily wage rate in INR."
+        },
+        "joiningDate": {
+          "type": "string",
+          "description": "Joining date in YYYY-MM-DD format."
+        },
+        "isActive": {
+          "type": "boolean",
+          "description": "Whether the worker is currently active on staff."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when last updated."
+        }
+      },
+      "required": ["userId", "name", "phone", "role", "dailyWage", "joiningDate", "isActive", "createdAt", "updatedAt"]
+    },
+    "AttendanceRecord": {
+      "title": "AttendanceRecord",
+      "description": "Daily attendance record for a worker on a specific date.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the shop owner."
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Document ID of the worker."
+        },
+        "date": {
+          "type": "string",
+          "description": "Attendance date in YYYY-MM-DD format."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PRESENT", "HALF_DAY", "ABSENT", "OVERTIME"],
+          "description": "Attendance status for the date."
+        },
+        "dailyWageSnapshot": {
+          "type": "integer",
+          "description": "Worker's daily wage rate at the time attendance was marked."
+        },
+        "overtimeAmount": {
+          "type": "integer",
+          "description": "Extra overtime wage in INR (0 when not overtime)."
+        },
+        "earnedAmount": {
+          "type": "integer",
+          "description": "Total earned wage for this date in INR."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional attendance note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when last updated."
+        }
+      },
+      "required": ["userId", "workerId", "date", "status", "dailyWageSnapshot", "overtimeAmount", "earnedAmount", "note", "createdAt", "updatedAt"]
+    },
+    "LabourTransaction": {
+      "title": "LabourTransaction",
+      "description": "Kharcha, advance, or settlement payout given to a worker.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the shop owner."
+        },
+        "workerId": {
+          "type": "string",
+          "description": "Document ID of the worker."
+        },
+        "workerName": {
+          "type": "string",
+          "description": "Worker name snapshot for display."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["KHARCHA", "ADVANCE", "SETTLEMENT"],
+          "description": "Type of payout given to the worker."
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Payout amount in INR."
+        },
+        "date": {
+          "type": "string",
+          "description": "Transaction date in YYYY-MM-DD format."
+        },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["CASH", "UPI"],
+          "description": "Payment mode used."
+        },
+        "note": {
+          "type": "string",
+          "description": "Reason or note (e.g., Chai/Nashta, Weekly Advance)."
+        },
+        "linkedCashbookId": {
+          "type": "string",
+          "description": "Document ID of the corresponding auto-synced cashbook expense entry."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when last updated."
+        }
+      },
+      "required": ["userId", "workerId", "workerName", "type", "amount", "date", "paymentMode", "note", "linkedCashbookId", "createdAt", "updatedAt"]
+    },
+    "CashbookEntry": {
+      "title": "CashbookEntry",
+      "description": "Daily shop galla/cashbook income or expense entry.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Firebase Auth UID of the shop owner."
+        },
+        "type": {
+          "type": "string",
+          "enum": ["INCOME", "EXPENSE"],
+          "description": "Cashbook entry direction."
+        },
+        "category": {
+          "type": "string",
+          "description": "Category such as Shop Sales, Rent, Electricity, Stock Purchase, Tea & Snacks, Labour Payout."
+        },
+        "amount": {
+          "type": "integer",
+          "description": "Amount in INR."
+        },
+        "paymentMode": {
+          "type": "string",
+          "enum": ["CASH", "UPI"],
+          "description": "Payment mode (Cash or UPI)."
+        },
+        "date": {
+          "type": "string",
+          "description": "Entry date in YYYY-MM-DD format."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional note or bill description."
+        },
+        "linkedWorkerId": {
+          "type": "string",
+          "description": "Worker ID if auto-synced from a labour payout, otherwise empty."
+        },
+        "linkedLabourTxId": {
+          "type": "string",
+          "description": "Labour transaction ID if auto-synced, otherwise empty."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when created."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp (FieldValue.serverTimestamp()) when last updated."
+        }
+      },
+      "required": ["userId", "type", "category", "amount", "paymentMode", "date", "note", "linkedWorkerId", "linkedLabourTxId", "createdAt", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/workers/{workerId}": {
+      "schema": {
+        "$ref": "#/entities/Worker"
+      },
+      "description": "Staff/labour profiles owned by the authenticated shop owner."
+    },
+    "/users/{userId}/attendance/{attendanceId}": {
+      "schema": {
+        "$ref": "#/entities/AttendanceRecord"
+      },
+      "description": "Daily attendance records keyed deterministically by workerId_date."
+    },
+    "/users/{userId}/labour_transactions/{txId}": {
+      "schema": {
+        "$ref": "#/entities/LabourTransaction"
+      },
+      "description": "Individual worker kharcha, advances, and settlement payouts."
+    },
+    "/users/{userId}/cashbook/{entryId}": {
+      "schema": {
+        "$ref": "#/entities/CashbookEntry"
+      },
+      "description": "Daily shop income and expense galla/cashbook entries."
+    }
+  }
+}

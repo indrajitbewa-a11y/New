@@ -1,0 +1,171 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Safety Net: Default-deny all paths
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Primitive Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDateStr(d) {
+      return d is string && d.size() == 10 && d.matches('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Validation Helpers ---
+    function isValidWorker(data, userId) {
+      return data.userId == userId &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.phone is string && data.phone.size() <= 20 &&
+             data.role is string && data.role.size() >= 1 && data.role.size() <= 60 &&
+             data.dailyWage is int && data.dailyWage > 0 && data.dailyWage <= 1000000 &&
+             isValidDateStr(data.joiningDate) &&
+             data.isActive is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidAttendance(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.workerId) &&
+             isValidDateStr(data.date) &&
+             data.status in ['PRESENT', 'HALF_DAY', 'ABSENT', 'OVERTIME'] &&
+             data.dailyWageSnapshot is int && data.dailyWageSnapshot > 0 && data.dailyWageSnapshot <= 1000000 &&
+             data.overtimeAmount is int && data.overtimeAmount >= 0 && data.overtimeAmount <= 1000000 &&
+             data.earnedAmount is int && data.earnedAmount >= 0 && data.earnedAmount <= 2000000 &&
+             data.note is string && data.note.size() <= 200 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidLabourTransaction(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.workerId) &&
+             data.workerName is string && data.workerName.size() >= 1 && data.workerName.size() <= 80 &&
+             data.type in ['KHARCHA', 'ADVANCE', 'SETTLEMENT'] &&
+             data.amount is int && data.amount > 0 && data.amount <= 10000000 &&
+             isValidDateStr(data.date) &&
+             data.paymentMode in ['CASH', 'UPI'] &&
+             data.note is string && data.note.size() <= 200 &&
+             isValidId(data.linkedCashbookId) &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCashbookEntry(data, userId) {
+      return data.userId == userId &&
+             data.type in ['INCOME', 'EXPENSE'] &&
+             data.category is string && data.category.size() >= 1 && data.category.size() <= 60 &&
+             data.amount is int && data.amount > 0 && data.amount <= 100000000 &&
+             data.paymentMode in ['CASH', 'UPI'] &&
+             isValidDateStr(data.date) &&
+             data.note is string && data.note.size() <= 200 &&
+             data.linkedWorkerId is string && data.linkedWorkerId.size() <= 128 &&
+             data.linkedLabourTxId is string && data.linkedLabourTxId.size() <= 128 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    // --- Collection Rules ---
+    match /users/{userId} {
+
+      match /workers/{workerId} {
+        allow get: if isOwner(userId) && isValidId(workerId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(workerId) &&
+                         incoming().keys().hasAll(['userId', 'name', 'phone', 'role', 'dailyWage', 'joiningDate', 'isActive', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'name', 'phone', 'role', 'dailyWage', 'joiningDate', 'isActive', 'createdAt', 'updatedAt']) &&
+                         isValidWorker(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(workerId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidWorker(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'role', 'dailyWage', 'joiningDate', 'isActive', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(workerId);
+      }
+
+      match /attendance/{attendanceId} {
+        allow get: if isOwner(userId) && isValidId(attendanceId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(attendanceId) &&
+                         incoming().keys().hasAll(['userId', 'workerId', 'date', 'status', 'dailyWageSnapshot', 'overtimeAmount', 'earnedAmount', 'note', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'workerId', 'date', 'status', 'dailyWageSnapshot', 'overtimeAmount', 'earnedAmount', 'note', 'createdAt', 'updatedAt']) &&
+                         isValidAttendance(incoming(), userId) &&
+                         existsAfter(/databases/$(database)/documents/users/$(userId)/workers/$(incoming().workerId));
+        allow update: if isOwner(userId) &&
+                         isValidId(attendanceId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().workerId == existing().workerId &&
+                         incoming().date == existing().date &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidAttendance(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['status', 'dailyWageSnapshot', 'overtimeAmount', 'earnedAmount', 'note', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(attendanceId);
+      }
+
+      match /labour_transactions/{txId} {
+        allow get: if isOwner(userId) && isValidId(txId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(txId) &&
+                         incoming().keys().hasAll(['userId', 'workerId', 'workerName', 'type', 'amount', 'date', 'paymentMode', 'note', 'linkedCashbookId', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'workerId', 'workerName', 'type', 'amount', 'date', 'paymentMode', 'note', 'linkedCashbookId', 'createdAt', 'updatedAt']) &&
+                         isValidLabourTransaction(incoming(), userId) &&
+                         existsAfter(/databases/$(database)/documents/users/$(userId)/workers/$(incoming().workerId)) &&
+                         existsAfter(/databases/$(database)/documents/users/$(userId)/cashbook/$(incoming().linkedCashbookId));
+        allow update: if isOwner(userId) &&
+                         isValidId(txId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().workerId == existing().workerId &&
+                         incoming().linkedCashbookId == existing().linkedCashbookId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidLabourTransaction(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['workerName', 'type', 'amount', 'date', 'paymentMode', 'note', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(txId);
+      }
+
+      match /cashbook/{entryId} {
+        allow get: if isOwner(userId) && isValidId(entryId);
+        allow list: if isOwner(userId);
+        allow create: if isOwner(userId) &&
+                         isValidId(entryId) &&
+                         incoming().keys().hasAll(['userId', 'type', 'category', 'amount', 'paymentMode', 'date', 'note', 'linkedWorkerId', 'linkedLabourTxId', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'type', 'category', 'amount', 'paymentMode', 'date', 'note', 'linkedWorkerId', 'linkedLabourTxId', 'createdAt', 'updatedAt']) &&
+                         isValidCashbookEntry(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(entryId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().linkedWorkerId == existing().linkedWorkerId &&
+                         incoming().linkedLabourTxId == existing().linkedLabourTxId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidCashbookEntry(incoming(), userId) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['type', 'category', 'amount', 'paymentMode', 'date', 'note', 'updatedAt']);
+        allow delete: if isOwner(userId) && isValidId(entryId);
+      }
+    }
+  }
+}
