@@ -128,16 +128,16 @@ jobs:
           if ! gradle :app:assembleDebug --stacktrace --no-daemon 2>&1 | tee "$LOG_FILE"; then
             echo ""
             echo "===== ROOT FAILURE SUMMARY ====="
-            awk '/^\* What went wrong:/{flag=1} /^\* Try:/{flag=0} flag' "$LOG_FILE" || true
-            echo "----- Error / Caused by lines -----"
+            awk '/^\* What went wrong:/{flag=1} /^\* (Try|Exception is):/{flag=0} flag' "$LOG_FILE" || true
+            echo "----- Caused by & compiler errors -----"
             grep -nE "^(FAILURE:|Execution failed|> |Caused by:|e: |ERROR:)" "$LOG_FILE" | head -n 40 || true
             {
               echo "## Debug APK Build Failure Details"
               echo ""
               echo '```text'
-              awk '/^\* What went wrong:/{flag=1} /^\* Try:/{flag=0} flag' "$LOG_FILE" || true
+              awk '/^\* What went wrong:/{flag=1} /^\* (Try|Exception is):/{flag=0} flag' "$LOG_FILE" || true
               echo "--- Caused by ---"
-              grep -E "^(Caused by:|e: |ERROR:)" "$LOG_FILE" | head -n 20 || true
+              grep -E "^(Caused by:|e: |ERROR:)" "$LOG_FILE" | head -n 25 || true
               echo '```'
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
